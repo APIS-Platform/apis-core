@@ -1,0 +1,126 @@
+version: "3"
+
+services:
+
+  gateway:
+    build: ./gateway/src
+    command: npm start
+    environment:
+      NODE_ENV: production
+      EXPRESS_PORT: "80"
+    env_file:
+      - .env
+    volumes:
+      - /app/node_modules
+      - ./gateway/src:/app
+    ports:
+      - "8100:80"
+
+  bitcoin-rpc:
+    build: ./bitcoin-rpc/src
+    command: npm start
+    environment:
+      NODE_ENV: production
+      EXPRESS_PORT: 80
+    ports:
+      - "${BITCOIN_RPC_PORT:-8101}:80"
+    env_file:
+      - .env
+    volumes:
+      - /app/node_modules
+      - ./bitcoin-rpc/src:/app
+    links:
+      - bitcoin-core
+
+  ethereum-rpc:
+    build: ./ethereum-rpc/src
+    command: npm start
+    environment:
+      NODE_ENV: production
+      EXPRESS_PORT: 80
+    ports:
+      - "${ETHEREUM_RPC_PORT:-8102}:80"
+    env_file:
+    - .env
+    volumes:
+      - /app/node_modules
+      - ./ethereum-rpc/src:/app
+
+  bitcoin-listener:
+    build: ./bitcoin-listener/src
+    command: npm start
+    environment:
+      NODE_ENV: production
+    ports:
+      - "${BITCOIN_LISTENER_PORT:-8103}:80"
+    env_file:
+      - .env
+    volumes:
+      - /app/node_modules
+      - ./bitcoin-listener/src:/app
+    links:
+      - bitcoin-core
+
+  ethereum-listener:
+    build: ./ethereum-listener/src
+    command: npm start
+    environment:
+      NODE_ENV: production
+    env_file:
+      - .env
+    ports:
+      - "${ETHEREUM_LISTENER_PORT:-8104}:80"
+    volumes:
+      - /app/node_modules
+      - ./ethereum-listener/src:/app
+
+  bitcoin-core:
+    image: ruimarinho/bitcoin-core:0.20.1
+    ports:
+      - "8332:8332"
+      - "9332:9332"
+      - "8333:8333"
+      - "9333:9333"
+      - "19332:19332"
+      - "19333:19333"
+      - "29332:29332"
+    env_file:
+      - .env
+    command:
+      - -regtest=1
+      - -listen=1
+      - -txindex=1
+      - -server=1
+      - -printtoconsole
+      - -port=19332
+      - -rpcport=19333
+      - -rpcallowip=127.0.0.1
+      - -rpcallowip=172.17.0.0
+      - -rpcallowip=172.17.0.0/8
+      - -rpcallowip=172.17.0.0/16
+      - -rpcallowip=192.168.0.0/16
+      - -rpcbind=0.0.0.0
+      - -rpcuser=bitcoin_rpc_user
+      - -rpcpassword=bitcoin_rpc_pass
+      - -zmqpubrawtx=tcp://*:29332
+      - -zmqpubrawblock=tcp://*:29332
+      - -zmqpubhashblock=tcp://*:29332
+      - -zmqpubhashtx=tcp://*:29332
+      - -keypool=100
+      - -deprecatedrpc=generate
+
+  db:
+    image: postgres:13
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+    env_file:
+      - .env
